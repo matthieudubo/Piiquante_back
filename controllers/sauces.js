@@ -26,6 +26,8 @@ exports.createSauce = (req, res) => {
     imageUrl: `${req.protocol}://${req.get("host")}/images/${
       req.file.filename
     }`,
+    likes: 0,
+    dislikes: 0,
   });
   sauce
     .save()
@@ -73,4 +75,51 @@ exports.deleteSauce = (req, res) => {
       });
     }
   });
+};
+
+exports.likeSauce = (req, res) => {
+  const { like, userId } = req.body;
+  const likesValue = [0, -1, 1];
+
+  if (!likesValue.includes(like))
+    return res.status(403).json({ message: "Invalid value" });
+
+  Sauce.findOne({ _id: req.params.id })
+    .then((sauce) => updateVote(sauce, like, userId))
+    .then((sauce) => res.status(200).json(sauce))
+    .catch((error) => res.status(500).json({ error }));
+};
+
+const updateVote = (sauce, like, userId, res) => {
+  if (like === 1 || like === -1) modifLike(sauce, userId, like);
+  if (like === 0) resetVote(sauce, userId);
+
+  return sauce.save();
+};
+
+const modifLike = (sauce, userId, like) => {
+  const { usersLiked, usersDisliked } = sauce;
+  const votersArray = like === 1 ? usersLiked : usersDisliked;
+
+  if (votersArray.includes(userId)) return;
+
+  votersArray.push(userId);
+
+  like === 1
+    ? (sauce.likes = usersLiked.length)
+    : (sauce.dislikes = usersDisliked.length);
+};
+
+const resetVote = (sauce, userId) => {
+  const { usersLiked, usersDisliked } = sauce;
+
+  if (usersLiked.includes(userId)) {
+    votersArray = usersLiked.filter((id) => id !== userId);
+    sauce.usersLiked = votersArray;
+    sauce.likes = votersArray.length;
+  } else {
+    votersArray = usersDisliked.filter((id) => id !== userId);
+    sauce.usersDisliked = votersArray;
+    sauce.dislikes = votersArray.length;
+  }
 };
